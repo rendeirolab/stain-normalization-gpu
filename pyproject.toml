@@ -1,0 +1,7 @@
+[project]
+name = "stain-normalization-gpu"
+version = "0.1.0"
+description = "GPU-accelerated stain normalization for histopathology images"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
