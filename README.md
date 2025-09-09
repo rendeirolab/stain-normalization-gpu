@@ -14,4 +14,16 @@ Roadmap:
 - [ ] Benchmark against existing implementation:
     - [ ] torchstain
     - [ ] torchvahadane
+    - [ ] slideflow
 - [ ] Ship into PyPI Package
+
+References implementation:
+- torchstain, https://github.com/EIDOSLAB/torchstain
+- torchvahadane, https://github.com/cwlkr/torchvahadane/tree/main
+- slideflow, https://github.com/slideflow/slideflow/tree/master/slideflow/norm
+- cuCIM (for macenko implementation), https://github.com/rapidsai/cucim/blob/branch-25.10/python/cucim/src/cucim/core/operations/color/stain_normalizer.py
+
+Papers:
+- Reinhard: https://home.cis.rit.edu/~cnspci/references/dip/color_transfer/reinhard2001.pdf
+- Macenko: http://wwwx.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf
+- Vahadane: https://ieeexplore.ieee.org/document/7460968
