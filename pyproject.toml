@@ -6,9 +6,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "cupy-cuda12x>=13.6.0",
+    "pillow>=11.3.0",
 ]
 
 [dependency-groups]
 dev = [
+    "ipykernel>=6.30.1",
     "prek>=0.1.6",
 ]
