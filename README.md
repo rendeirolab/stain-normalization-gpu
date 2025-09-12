@@ -27,3 +27,6 @@ Papers:
 - Reinhard: https://home.cis.rit.edu/~cnspci/references/dip/color_transfer/reinhard2001.pdf
 - Macenko: http://wwwx.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf
 - Vahadane: https://ieeexplore.ieee.org/document/7460968
+
+
+Random stuff.
