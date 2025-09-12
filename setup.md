@@ -32,4 +32,4 @@ Please open a Pull request for review.
 
 # About test data
 
-There are one target.png for the fit method and four test_*.png for the normalize method.
+There is one `target.png` for the fit method and five `test_*.png` for the normalize method.
