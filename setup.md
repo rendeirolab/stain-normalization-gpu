@@ -28,3 +28,8 @@ Please open a Pull request for review.
 2. Modify your code, make commits
 3. Push to remote
 4. Draft a pull request and wait for review
+
+
+# About test data
+
+There are one target.png for the fit method and four test_*.png for the normalize method.
