@@ -29,6 +29,12 @@ Please open a Pull request for review.
 3. Push to remote
 4. Draft a pull request and wait for review
 
+# Impelmentation details
+
+1. The `fit` and `normalize` method should take in a cupy array with shape of (B, C, H, W)
+2. Add your implementation to the tests
+3. Add a benchmark script
+4. Add a visualization script to run against the image in the `data` folder, compare it to existing implementation
 
 # About test data
 
