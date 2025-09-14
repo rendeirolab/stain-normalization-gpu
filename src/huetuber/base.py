@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+import cupy as cp
 
 class BaseStainNormalizer(ABC):
     """
@@ -10,7 +11,7 @@ class BaseStainNormalizer(ABC):
         return self.normalize(*args, **kwargs)
 
     @abstractmethod
-    def fit(self, target):
+    def fit(self, target: cp.ndarray) -> None:
         """
         Fit the normalizer to the target image.
 
@@ -22,7 +23,7 @@ class BaseStainNormalizer(ABC):
         pass
 
     @abstractmethod
-    def normalize(self, source):
+    def normalize(self, source: cp.ndarray) -> cp.ndarray:
         """
         Normalize the source image to match the target image.
 
