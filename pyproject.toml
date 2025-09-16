@@ -20,9 +20,11 @@ dependencies = [
 
 [dependency-groups]
 benchmark = [
+    "imageio[pillow]>=2.37.0",
     "matplotlib>=3.10.6",
     "mpl-fontkit>=0.5.1",
     "pandas>=2.3.2",
+    "scikit-image>=0.25.2",
     "seaborn>=0.13.2",
     "torchstain>=1.4.1",
     "unhcrpyplotstyle>=0.1.3",
