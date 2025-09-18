@@ -16,7 +16,11 @@ if PROJECT_SRC not in sys.path:
 import cupy as cp
 import numpy as np
 from skimage import exposure as skexp  # for CPU baseline
-from PIL import Image  # <-- use Pillow for I/O
+from PIL import Image, ImageFile  # <-- use Pillow for I/O
+
+# --- allow very large images (e.g., 16k x 16k) ---
+Image.MAX_IMAGE_PIXELS = None
+ImageFile.LOAD_TRUNCATED_IMAGES = True  # optional: tolerate slightly broken files
 
 from huetuber.match_histogram import HistogramMatching  # GPU-only version
 
