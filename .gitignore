@@ -208,3 +208,6 @@ __marimo__/
 
 # ignore giant benchmark renders
 benchmark/result_16k/
+
+# ignore giant benchmark renders
+benchmark/result_16k/
