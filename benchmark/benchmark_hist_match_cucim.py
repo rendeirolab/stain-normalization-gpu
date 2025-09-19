@@ -18,6 +18,14 @@ import numpy as np
 from skimage import exposure as skexp  # for CPU baseline
 from PIL import Image, ImageFile  # <-- use Pillow for I/O
 
+# OPTIONAL GPU baseline: cuCIM (keeps everything on-GPU)
+try:
+    from cucim.skimage import exposure as cucexp
+
+    _HAS_CUCIM = True
+except Exception:
+    _HAS_CUCIM = False
+
 # --- allow very large images (e.g., 16k x 16k) ---
 Image.MAX_IMAGE_PIXELS = None
 ImageFile.LOAD_TRUNCATED_IMAGES = True  # optional: tolerate slightly broken files
@@ -50,6 +58,17 @@ def bchw_cp_to_hwc_np(img_bchw_cp):
     return cp.asnumpy(out)
 
 
+# --- lightweight GPU-only conversions for cuCIM (expects channel-last) ---
+def bchw_cp_to_hwc_cp(img_bchw_cp):
+    # (1,C,H,W) -> (H,W,C) on GPU
+    return img_bchw_cp[0].transpose(1, 2, 0)
+
+
+def hwc_cp_to_bchw_cp(img_hwc_cp):
+    # (H,W,C) -> (1,C,H,W) on GPU
+    return img_hwc_cp.transpose(2, 0, 1)[None, ...]
+
+
 def time_gpu(fn, *args, **kwargs):
     cp.cuda.Stream.null.synchronize()
     t0 = time.perf_counter()
@@ -68,17 +87,30 @@ def main():
         "--compare_skimage", action="store_true", help="Also run CPU skimage baseline"
     )
     ap.add_argument(
-        "--channel_axis", type=int, default=1, help="1 for BCHW, -1 for BHWC"
+        "--compare_cucim",
+        action="store_true",
+        help="Also run cuCIM GPU baseline (requires cucim)",
+    )
+    ap.add_argument(
+        "--channel_axis",
+        type=int,
+        default=1,
+        help="1 for BCHW, -1 for BHWC (for your HistogramMatching)",
     )
     args = ap.parse_args()
+
+    if args.compare_cucim and not _HAS_CUCIM:
+        print("[WARN] --compare_cucim requested but cucim not importable; skipping.")
+        args.compare_cucim = False
 
     os.makedirs(args.out_dir, exist_ok=True)
 
     # --- load & move reference to GPU ---
     ref_np = load_image_cpu(args.ref)  # HWC uint8 on CPU
     ref_bchw_cp = hwc_np_to_bchw_cp(ref_np)  # (1,C,H,W) on GPU
+    ref_hwc_cp = bchw_cp_to_hwc_cp(ref_bchw_cp)  # (H,W,C) on GPU (for cuCIM)
 
-    # --- init & warm-up ---
+    # --- init & warm-up (your module) ---
     norm = HistogramMatching(channel_axis=args.channel_axis, dtype_out=cp.uint8)
     norm.fit(ref_bchw_cp)
     _ = norm.normalize(ref_bchw_cp[:, :, :32, :32])  # small slice warm-up
@@ -92,6 +124,7 @@ def main():
     paths.sort()
 
     gpu_times = []
+    cucim_times = []
     cpu_times = []
 
     for pth in paths:
@@ -99,16 +132,36 @@ def main():
         print(f"[GPU] Processing {name} ...")
 
         # load source on CPU then move to GPU
-        src_np = load_image_cpu(pth)
-        src_bchw_cp = hwc_np_to_bchw_cp(src_np)
+        src_np = load_image_cpu(pth)  # HWC uint8 (CPU)
+        src_bchw_cp = hwc_np_to_bchw_cp(src_np)  # (1,C,H,W) on GPU
 
-        # --- GPU timing ---
+        # --- GPU timing: your HistogramMatching (kept identical) ---
         out_bchw_cp, t_gpu = time_gpu(norm.normalize, src_bchw_cp)
         gpu_times.append(t_gpu)
 
         # save GPU output
         out_np = bchw_cp_to_hwc_np(out_bchw_cp)  # back to CPU for saving
         save_image_cpu(os.path.join(args.out_dir, f"matched_gpu_{name}"), out_np)
+        print(f" -> GPU time (yours): {t_gpu:.6f}s")
+
+        # --- optional GPU baseline: cuCIM (no CPU hops) ---
+        if args.compare_cucim:
+            # convert BCHW -> HWC on GPU for cuCIM
+            src_hwc_cp = bchw_cp_to_hwc_cp(src_bchw_cp)
+
+            # cuCIM expects channel-last; mirror skimage signature
+            def _cucim_call(a_hwc_cp, ref_hwc_cp):
+                return cucexp.match_histograms(a_hwc_cp, ref_hwc_cp, channel_axis=-1)
+
+            out_hwc_cu, t_cu = time_gpu(_cucim_call, src_hwc_cp, ref_hwc_cp)
+            cucim_times.append(t_cu)
+
+            # Save result (GPU->CPU)
+            out_np_cu = cp.asnumpy(out_hwc_cu.astype(cp.uint8, copy=False))
+            save_image_cpu(
+                os.path.join(args.out_dir, f"matched_cucim_{name}"), out_np_cu
+            )
+            print(f" -> GPU time (cuCIM): {t_cu:.6f}s")
 
         # --- optional CPU baseline (skimage) ---
         if args.compare_skimage:
@@ -122,23 +175,30 @@ def main():
                 out_cpu.astype(np.uint8),
             )
 
-        print(f" -> GPU time: {t_gpu:.6f}s")
-
     # --- summary ---
     if gpu_times:
         print(
-            f"\nGPU:  mean={np.mean(gpu_times):.6f}s  median={np.median(gpu_times):.6f}s  n={len(gpu_times)}"
+            f"\nGPU (yours):  mean={np.mean(gpu_times):.6f}s  "
+            f"median={np.median(gpu_times):.6f}s  n={len(gpu_times)}"
+        )
+    if cucim_times:
+        print(
+            f"GPU (cuCIM): mean={np.mean(cucim_times):.6f}s  "
+            f"median={np.median(cucim_times):.6f}s  n={len(cucim_times)}"
         )
     if cpu_times:
         print(
-            f"CPU:  mean={np.mean(cpu_times):.6f}s  median={np.median(cpu_times):.6f}s  n={len(cpu_times)}"
+            f"CPU (skimage): mean={np.mean(cpu_times):.6f}s  "
+            f"median={np.median(cpu_times):.6f}s  n={len(cpu_times)}"
         )
 
-    # write a CSV summary
+    # write a CSV summary (append all backends)
     with open(os.path.join(args.out_dir, "benchmark_hist_match.csv"), "w") as f:
         f.write("backend,filename,seconds\n")
         for pth, t in zip(paths, gpu_times):
             f.write(f"gpu,{os.path.basename(pth)},{t:.6f}\n")
+        for pth, t in zip(paths, cucim_times):
+            f.write(f"cucim,{os.path.basename(pth)},{t:.6f}\n")
         for pth, t in zip(paths, cpu_times):
             f.write(f"cpu,{os.path.basename(pth)},{t:.6f}\n")
 
