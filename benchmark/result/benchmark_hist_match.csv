@@ -1,0 +1,13 @@
+backend,filename,seconds
+gpu,target.png,0.002849
+gpu,test_1.png,0.002737
+gpu,test_2.png,0.002740
+gpu,test_3.png,0.002643
+gpu,test_4.png,0.002700
+gpu,test_5.png,0.002644
+cpu,target.png,0.002002
+cpu,test_1.png,0.000953
+cpu,test_2.png,0.000875
+cpu,test_3.png,0.000879
+cpu,test_4.png,0.000897
+cpu,test_5.png,0.000993
