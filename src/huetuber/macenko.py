@@ -458,3 +458,7 @@ class MacenkoNormalizer(BaseStainNormalizer):
             image_norm = cp.moveaxis(image_norm, source=0, destination=self._channel_axis)
         # restore original shape
         return image_norm
+    
+if __name__ == "__main__":
+    norm = MacenkoNormalizer()
+    print("class initialized without any errors")
