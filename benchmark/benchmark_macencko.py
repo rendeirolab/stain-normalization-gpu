@@ -38,12 +38,12 @@ def benchmark_macenko_speed(repeat=5, img_size=512, num_imgs_list=[5, 10, 50, 10
         warmup_source = cp.random.randint(0, 256, (1, 3, img_size, img_size)).astype(cp.uint8)
 
         macenko_huetuber = MacenkoNormalizer()
-        macenko_huetuber.fit(target_img)
-        macenko_huetuber(warmup_source)  # Warm up
+        macenko_huetuber.fit(warmup_source)
+        macenko_huetuber.normalize()  # Warm up
 
         for _ in range(repeat):
             start = time()
-            macenko_huetuber(source_img)
+            macenko_huetuber.normalize()
             end = time()
             records["huetuber"].append(end - start)
         
