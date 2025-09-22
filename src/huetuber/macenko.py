@@ -901,4 +901,7 @@ class MacenkoNormalizer(BaseStainNormalizer):
     
 if __name__ == "__main__":
     norm = MacenkoNormalizer()
+    x = cp.random.randint(0, 256, (3, 150, 150)).astype(cp.uint8)
+    norm.fit(x)
+    y = norm.normalize()
     print("class initialized without any errors")
