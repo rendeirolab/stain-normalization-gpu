@@ -3,9 +3,9 @@ import numpy as np
 import cupy as cp
 from pathlib import Path
 import cv2
+from skimage.exposure import match_histograms
 
-from huetuber.macenko import MacenkoNormalizer
-from torchstain.numpy.normalizers.macenko import NumpyMacenkoNormalizer
+from huetuber import HistogramMatching
 
 
 def load_image(path):
@@ -17,8 +17,8 @@ def load_image(path):
     return img
 
 
-def visualize_macenko_normalization():
-    """Visualize Macenko stain normalization results."""
+def visualize_histogram_matching():
+    """Visualize Histogram Matching stain normalization results."""
 
     # Data directory
     data_dir = Path(__file__).parent.parent / "data"
@@ -42,13 +42,9 @@ def visualize_macenko_normalization():
         cp.array(img).transpose(2, 0, 1)[None, ...] for img in test_images
     ]
 
-    # Initialize and fit Macenko normalizer (huetuber)
-    normalizer = MacenkoNormalizer()
+    # Initialize and fit Histogram Matching normalizer (huetuber)
+    normalizer = HistogramMatching(channel_axis=1)
     normalizer.fit(target_cp)
-
-    # Initialize and fit torchstain numpy normalizer
-    torchstain_normalizer = NumpyMacenkoNormalizer()
-    torchstain_normalizer.fit(target_img)  # torchstain expects HWC format
 
     # Normalize test images with huetuber
     normalized_images = []
@@ -56,11 +52,12 @@ def visualize_macenko_normalization():
         normalized = normalizer.normalize(test_img)
         normalized_images.append(normalized)
 
-    # Normalize test images with torchstain
-    torchstain_normalized = []
+    # Normalize test images with scikit-image
+    skimage_normalized = []
     for test_img in test_images:
-        normalized = torchstain_normalizer.normalize(test_img)
-        torchstain_normalized.append(normalized)
+        # scikit-image expects HWC format
+        normalized = match_histograms(test_img, target_img, channel_axis=-1)
+        skimage_normalized.append(normalized)
 
     # Convert back to numpy for visualization (NHWC format)
     target_np = target_cp[0].transpose(1, 2, 0).get()
@@ -82,23 +79,16 @@ def visualize_macenko_normalization():
         for img in normalized_np
     ]
 
-    torchstain_normalized_np = []
-    for normalized in torchstain_normalized:
-        # torchstain might return a tuple, so handle that case
-        if isinstance(normalized, tuple):
-            normalized = normalized[0]  # Take the first element if it's a tuple
-
-        # Ensure the torchstain normalized images are in the correct shape and range
-        if len(normalized.shape) == 4:
-            # If batch dimension is present, remove it
-            normalized = normalized[0] if normalized.shape[0] == 1 else normalized
+    # Process scikit-image normalized images
+    skimage_normalized_np = []
+    for normalized in skimage_normalized:
         # Ensure in [0, 1] range
         normalized = (
             np.clip(normalized / 255.0, 0, 1)
             if normalized.max() > 1
             else np.clip(normalized, 0, 1)
         )
-        torchstain_normalized_np.append(normalized)
+        skimage_normalized_np.append(normalized)
 
     # Create visualization with 4 rows
     num_tests = len(test_images)
@@ -123,22 +113,22 @@ def visualize_macenko_normalization():
         axes[1, i].set_title(f"Test {i + 1} - Original", fontsize=12)
         axes[1, i].axis("off")
 
-    # Third row: Normalized test images (huetuber)
+    # Third row: Normalized test images (huetuber histogram matching)
     for i, normalized in enumerate(normalized_np):
         axes[2, i].imshow(normalized)
         axes[2, i].set_title(f"Test {i + 1} - HueTuber", fontsize=12)
         axes[2, i].axis("off")
 
-    # Fourth row: Normalized test images (torchstain)
-    for i, normalized in enumerate(torchstain_normalized_np):
+    # Fourth row: Normalized test images (scikit-image)
+    for i, normalized in enumerate(skimage_normalized_np):
         axes[3, i].imshow(normalized)
-        axes[3, i].set_title(f"Test {i + 1} - TorchStain", fontsize=12)
+        axes[3, i].set_title(f"Test {i + 1} - Scikit-Image", fontsize=12)
         axes[3, i].axis("off")
 
     # Adjust layout
     plt.tight_layout()
     plt.suptitle(
-        "Macenko Stain Normalization Comparison: HueTuber vs TorchStain",
+        "Histogram Matching Stain Normalization Comparison: HueTuber vs Scikit-Image",
         fontsize=16,
         fontweight="bold",
         y=0.98,
@@ -147,13 +137,17 @@ def visualize_macenko_normalization():
     # Save the plot
     save_path = Path(__file__).parent / "results"
     save_path.mkdir(exist_ok=True)
-    plt.savefig(save_path / "macenko_visualization.png", dpi=300, bbox_inches="tight")
+    plt.savefig(
+        save_path / "histogram_matching_visualization.png", dpi=300, bbox_inches="tight"
+    )
 
-    print(f"Visualization saved to: {save_path / 'macenko_visualization.png'}")
+    print(
+        f"Visualization saved to: {save_path / 'histogram_matching_visualization.png'}"
+    )
 
     # Show the plot
     plt.show()
 
 
 if __name__ == "__main__":
-    visualize_macenko_normalization()
+    visualize_histogram_matching()
